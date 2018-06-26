@@ -118,7 +118,7 @@ SQL
 
   # https://mariadb.com/kb/en/library/mariadb-environment-variables/
   export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"
-
+  
   # Create root user for $MYSQL_ROOT_HOST
   file_env 'MYSQL_ROOT_HOST' '%'
   if [ "$MYSQL_ROOT_HOST" != 'localhost' ]; then
@@ -162,6 +162,16 @@ SQL
     esac
     echo
   done
+
+   #CREATE REPLICATION USER
+if [ "$MYSQL_ROLE" = 'master' ]; then
+  cp -r /usr/src/master.cnf /etc/mysql/conf.d/
+execute <<SQL
+  CREATE USER '${MYSQL_REPLICATION_USER}'@'%';
+  GRANT REPLICATION SLAVE ON *.* TO '${MYSQL_REPLICATION_USER}'@'%' IDENTIFIED BY '${MYSQL_REPLICATION_PASSWORD}';
+  FLUSH PRIVILEGES ;
+SQL
+fi
 
   if ! mysqladmin -uroot --password="$MYSQL_PWD" shutdown; then
     echo >&2 'Shutdown failed'
