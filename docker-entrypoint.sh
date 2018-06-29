@@ -118,7 +118,7 @@ SQL
 
   # https://mariadb.com/kb/en/library/mariadb-environment-variables/
   export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"
-
+  
   # Create root user for $MYSQL_ROOT_HOST
   file_env 'MYSQL_ROOT_HOST' '%'
   if [ "$MYSQL_ROOT_HOST" != 'localhost' ]; then
@@ -162,6 +162,40 @@ SQL
     esac
     echo
   done
+
+   #MASTER CONFIG
+if [ "$MYSQL_ROLE" = 'master' ]; then
+  cp -r /usr/src/master.cnf /etc/mysql/conf.d/
+execute <<SQL
+  CREATE USER '${MYSQL_REPLICATION_USER}'@'%';
+  GRANT REPLICATION SLAVE ON *.* TO '${MYSQL_REPLICATION_USER}'@'%' IDENTIFIED BY '${MYSQL_REPLICATION_PASSWORD}';
+  FLUSH PRIVILEGES ;
+SQL
+fi
+
+#SLAVE CONFIG
+if [ "$MYSQL_ROLE" = 'slave' ]; then
+  if [[ -z "$MASTER_HOST" ]]; then
+    echo 'Please specify your master information.'
+    exit 0
+  fi
+
+  cp -r /usr/src/slave.cnf /etc/mysql/conf.d/
+  MYSQL01_Position=$(eval "mysql --host $MASTER_HOST -uroot -p$MYSQL_MASTER_PASSWORD -e 'show master status \G' | grep Position | sed -n -e 's/^.*: //p'")
+  MYSQL01_File=$(eval "mysql --host $MASTER_HOST -uroot -p$MYSQL_MASTER_PASSWORD -e 'show master status \G'     | grep File     | sed -n -e 's/^.*: //p'")
+  
+  echo "Your Master Position is $MYSQL01_Position"
+  echo "Your Master Log File is $MYSQL01_File"
+
+  execute <<SQL
+    STOP SLAVE;
+    RESET SLAVE ALL;
+    CHANGE MASTER TO MASTER_HOST='${MASTER_HOST}', MASTER_USER='${MYSQL_REPLICATION_USER}', MASTER_PASSWORD='${MYSQL_REPLICATION_PASSWORD}', MASTER_LOG_FILE='${MYSQL01_File}', MASTER_LOG_POS=${MYSQL01_Position};
+    start slave;
+    show slave status \G
+SQL
+
+fi
 
   if ! mysqladmin -uroot --password="$MYSQL_PWD" shutdown; then
     echo >&2 'Shutdown failed'
