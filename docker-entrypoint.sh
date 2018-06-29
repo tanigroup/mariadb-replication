@@ -176,7 +176,7 @@ fi
 #SLAVE CONFIG
 if [ "$MYSQL_ROLE" = 'slave' ]; then
   if [[ -z "$MASTER_HOST" ]]; then
-    echo 'Please specify your master informastion.'
+    echo 'Please specify your master information.'
     exit 0
   fi
 
@@ -188,6 +188,8 @@ if [ "$MYSQL_ROLE" = 'slave' ]; then
   echo "Your Master Log File is $MYSQL01_File"
 
   execute <<SQL
+    STOP SLAVE;
+    RESET SLAVE ALL;
     CHANGE MASTER TO MASTER_HOST='${MASTER_HOST}', MASTER_USER='${MYSQL_REPLICATION_USER}', MASTER_PASSWORD='${MYSQL_REPLICATION_PASSWORD}', MASTER_LOG_FILE='${MYSQL01_File}', MASTER_LOG_POS=${MYSQL01_Position};
     start slave;
     show slave status \G
