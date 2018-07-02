@@ -154,11 +154,12 @@ SQL
 
   echo
   for f in $(ls /docker-entrypoint-initdb.d/); do
+  myFile="/docker-entrypoint-initdb.d/$f"
     case "$f" in
-      *.sh)     echo "$0: running $f"; . "$f" ;;
-      *.sql)    echo "$0: running $f"; execute < "$f"; echo ;;
-      *.sql.gz) echo "$0: running $f"; gunzip -c "$f" | execute; echo ;;
-      *)        echo "$0: ignoring $f" ;;
+      *.sh)     echo "$0: running $myFile"; . "$myFile" ;;
+      *.sql)    echo "$0: running $myFile"; execute < "$myFile"; echo ;;
+      *.sql.gz) echo "$0: running $myFile"; gunzip -c "$myFile" | execute; echo ;;
+      *)        echo "$0: ignoring $myFile" ;;
     esac
     echo
   done
