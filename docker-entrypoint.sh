@@ -129,29 +129,22 @@ SQL
 SQL
   fi
 
-  file_env 'MYSQL_DATABASE'
-  if [ "$MYSQL_DATABASE" ]; then
-    execute "CREATE DATABASE IF NOT EXISTS \`$MYSQL_DATABASE\` ;"
-  fi
-
   file_env 'MYSQL_USER'
   file_env 'MYSQL_PASSWORD'
   if [ "$MYSQL_USER" -a "$MYSQL_PASSWORD" ]; then
     execute "CREATE USER '$MYSQL_USER'@'%' IDENTIFIED BY '$MYSQL_PASSWORD' ;"
+  fi
 
-    if [ "$MYSQL_DATABASE" ]; then
+  file_env 'MYSQL_DATABASE'
+  if [ "$MYSQL_DATABASE" ]; then
+    execute "CREATE DATABASE IF NOT EXISTS \`$MYSQL_DATABASE\` ;"
+    if [ "$MYSQL_USER" -a "$MYSQL_PASSWORD" ]; then
       execute "GRANT ALL ON \`$MYSQL_DATABASE\`.* TO '$MYSQL_USER'@'%' ;"
     fi
-
-    execute 'FLUSH PRIVILEGES ;'
   fi
 
-  # Database cannot be specified when creating user,
-  # otherwise it will fail with "Unknown database"
-  if [ "$MYSQL_DATABASE" ]; then
-    mysql_options="$mysql_options \"$MYSQL_DATABASE\""
-  fi
-
+  echo
+  echo "Executing user define sql file"
   echo
   for f in $(ls /docker-entrypoint-initdb.d/); do
   myFile="/docker-entrypoint-initdb.d/$f"
