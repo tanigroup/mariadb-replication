@@ -159,7 +159,20 @@ SQL
 
    #MASTER CONFIG
 if [ "$MYSQL_ROLE" = 'master' ]; then
-  cp -r /usr/src/master.cnf /etc/mysql/conf.d/
+
+cat <<EOT >> /etc/mysql/conf.d/master.cnf
+[mysqld]
+server-id=1
+log-bin=mysql-bin
+log-slave-updates=1
+datadir=/var/lib/mysql/
+innodb_flush_log_at_trx_commit = 2
+innodb_flush_method = O_DIRECT
+skip-host-cache
+skip-name-resolve
+max_allowed_packet=100M
+EOT
+
 execute <<SQL
   CREATE USER '${MYSQL_REPLICATION_USER}'@'%';
   GRANT REPLICATION SLAVE ON *.* TO '${MYSQL_REPLICATION_USER}'@'%' IDENTIFIED BY '${MYSQL_REPLICATION_PASSWORD}';
@@ -174,7 +187,33 @@ if [ "$MYSQL_ROLE" = 'slave' ]; then
     exit 0
   fi
 
-  cp -r /usr/src/slave.cnf /etc/mysql/conf.d/
+cat <<EOT >> /etc/mysql/conf.d/slave.cnf
+[mariadb]
+server-id=2
+log-bin=mysql-bin
+log-slave-updates=1
+auto_increment_increment=2
+auto_increment_offset=2
+datadir=/var/lib/mysql
+read-only=1
+slave-skip-errors = 1062
+skip-host-cache
+skip-name-resolve
+max_allowed_packet=100M
+EOT
+
+mkdir -p /init_slave/
+ExcludeDatabases="Database|information_schema|performance_schema|mysql"
+databases=`mysql -u root -p$MYSQL_MASTER_PASSWORD -h $MASTER_HOST -e "SHOW DATABASES;" | tr -d "| " | egrep -v $ExcludeDatabases`
+
+for db in $databases; do
+        echo "Dumping database: $db"
+        mysqldump -u root -p$MYSQL_MASTER_PASSWORD -h $MASTER_HOST --databases $db > /init_slave/$db.sql
+		    echo "$0: running $db.sql"
+        execute < "/init_slave/$db.sql"
+        rm -rf /init_slave/$db.sql
+done
+
   MYSQL01_Position=$(eval "mysql --host $MASTER_HOST -uroot -p$MYSQL_MASTER_PASSWORD -e 'show master status \G' | grep Position | sed -n -e 's/^.*: //p'")
   MYSQL01_File=$(eval "mysql --host $MASTER_HOST -uroot -p$MYSQL_MASTER_PASSWORD -e 'show master status \G'     | grep File     | sed -n -e 's/^.*: //p'")
   
