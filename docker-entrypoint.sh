@@ -200,22 +200,24 @@ slave-skip-errors = 1062
 skip-host-cache
 skip-name-resolve
 max_allowed_packet=100M
+replicate-ignore-db=mysql
 EOT
 
 mkdir -p /init_slave/
 ExcludeDatabases="Database|information_schema|performance_schema|mysql"
-databases=`mysql -u root -p$MYSQL_MASTER_PASSWORD -h $MASTER_HOST -e "SHOW DATABASES;" | tr -d "| " | egrep -v $ExcludeDatabases`
+databases=`mysql -u $MYSQL_MASTER_USER -p$MYSQL_MASTER_PASSWORD -h $MASTER_HOST -e "SHOW DATABASES;" | tr -d "| " | egrep -v $ExcludeDatabases`
 
 for db in $databases; do
         echo "Dumping database: $db"
-        mysqldump -u root -p$MYSQL_MASTER_PASSWORD -h $MASTER_HOST --databases $db > /init_slave/$db.sql
+        mysqldump -u $MYSQL_MASTER_USER -p$MYSQL_MASTER_PASSWORD -h $MASTER_HOST --databases $db > /init_slave/$db.sql
 		    echo "$0: running $db.sql"
         execute < "/init_slave/$db.sql"
         rm -rf /init_slave/$db.sql
+        echo "replicate-do-db=$db" >> /etc/mysql/conf.d/slave.cnf
 done
 
-  MYSQL01_Position=$(eval "mysql --host $MASTER_HOST -uroot -p$MYSQL_MASTER_PASSWORD -e 'show master status \G' | grep Position | sed -n -e 's/^.*: //p'")
-  MYSQL01_File=$(eval "mysql --host $MASTER_HOST -uroot -p$MYSQL_MASTER_PASSWORD -e 'show master status \G'     | grep File     | sed -n -e 's/^.*: //p'")
+  MYSQL01_Position=$(eval "mysql --host $MASTER_HOST -u$MYSQL_MASTER_USER -p$MYSQL_MASTER_PASSWORD -e 'show master status \G' | grep Position | sed -n -e 's/^.*: //p'")
+  MYSQL01_File=$(eval "mysql --host $MASTER_HOST -u$MYSQL_MASTER_USER -p$MYSQL_MASTER_PASSWORD -e 'show master status \G'     | grep File     | sed -n -e 's/^.*: //p'")
   
   echo "Your Master Position is $MYSQL01_Position"
   echo "Your Master Log File is $MYSQL01_File"

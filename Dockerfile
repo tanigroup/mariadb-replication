@@ -6,6 +6,7 @@ ENV MYSQL_REPLICATION_USER=repl
 ENV MYSQL_REPLICATION_PASSWORD=repl
 ENV MYSQL_ROLE=master
 ENV MYSQL_ROOT_PASSWORD=root
+ENV MYSQL_MASTER_USER=root
 RUN mkdir /docker-entrypoint-initdb.d && \
     apk -U upgrade && \
     apk add --no-cache mariadb mariadb-client && \
